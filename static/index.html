@@ -173,6 +173,28 @@ uploadZone.addEventListener('drop', e => {
   setFile(e.dataTransfer.files[0]);
 });
 
+// 压缩图片到最大边1280px，减少传输和处理时间
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1280;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(resolve, 'image/jpeg', 0.85);
+    };
+    img.src = url;
+  });
+}
+
 analyzeBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
 
@@ -181,8 +203,9 @@ analyzeBtn.addEventListener('click', async () => {
   resultEl.style.display = 'none';
   errorEl.style.display = 'none';
 
+  const compressed = await compressImage(selectedFile);
   const formData = new FormData();
-  formData.append('file', selectedFile);
+  formData.append('file', compressed, 'photo.jpg');
 
   try {
     const res = await fetch('/analyze', { method: 'POST', body: formData });
